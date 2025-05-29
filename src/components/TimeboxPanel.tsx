@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Clock, Plus, Edit3, Trash2 } from 'lucide-react';
+import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +13,24 @@ interface TimeSlot {
   hour: number;
   task: string;
   notes: string;
+  draggedItems: ProcessedItem[];
+}
+
+interface ProcessedItem {
+  id: string;
+  text: string;
+  category?: string;
+}
+
+interface PriorityItem extends ProcessedItem {
+  priority: number;
+}
+
+interface DayData {
+  brainDump: string;
+  processedItems: ProcessedItem[];
+  priorities: PriorityItem[];
+  timeSlots: TimeSlot[];
 }
 
 interface TimeboxPanelProps {
@@ -19,18 +38,25 @@ interface TimeboxPanelProps {
 }
 
 export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [dayData, setDayData] = useState<DayData>({
+    brainDump: '',
+    processedItems: [],
+    priorities: [],
+    timeSlots: []
+  });
   const [editingSlot, setEditingSlot] = useState<string | null>(null);
   const [newTask, setNewTask] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiKey, setApiKey] = useState('');
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
-  // Initialize time slots for the day (24 hours)
+  // Initialize data for the day
   useEffect(() => {
     const savedData = localStorage.getItem(`timebox-${dateKey}`);
     if (savedData) {
-      setTimeSlots(JSON.parse(savedData));
+      setDayData(JSON.parse(savedData));
     } else {
       const initialSlots: TimeSlot[] = [];
       for (let hour = 0; hour < 24; hour++) {
@@ -38,35 +64,190 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
           id: `${dateKey}-${hour}`,
           hour,
           task: '',
-          notes: ''
+          notes: '',
+          draggedItems: []
         });
       }
-      setTimeSlots(initialSlots);
+      setDayData({
+        brainDump: '',
+        processedItems: [],
+        priorities: [],
+        timeSlots: initialSlots
+      });
     }
   }, [dateKey]);
 
-  // Save to localStorage whenever timeSlots change
+  // Save to localStorage whenever dayData changes
   useEffect(() => {
-    localStorage.setItem(`timebox-${dateKey}`, JSON.stringify(timeSlots));
-  }, [timeSlots, dateKey]);
+    localStorage.setItem(`timebox-${dateKey}`, JSON.stringify(dayData));
+  }, [dayData, dateKey]);
+
+  const processBrainDump = async () => {
+    if (!dayData.brainDump.trim()) return;
+    if (!apiKey) {
+      alert('Please enter your OpenAI API key first');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a productivity assistant. Take the user\'s brain dump and organize it into clear, actionable items. Return a JSON array of objects with "id", "text", and "category" fields. Keep items concise and actionable.'
+            },
+            {
+              role: 'user',
+              content: `Please organize this brain dump into actionable items: ${dayData.brainDump}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to process brain dump');
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      
+      try {
+        const items = JSON.parse(content);
+        const processedItems: ProcessedItem[] = items.map((item: any, index: number) => ({
+          id: `processed-${Date.now()}-${index}`,
+          text: item.text || item,
+          category: item.category || 'General'
+        }));
+
+        setDayData(prev => ({
+          ...prev,
+          processedItems
+        }));
+      } catch (parseError) {
+        // Fallback: split by lines if JSON parsing fails
+        const lines = content.split('\n').filter(line => line.trim());
+        const processedItems: ProcessedItem[] = lines.map((line, index) => ({
+          id: `processed-${Date.now()}-${index}`,
+          text: line.replace(/^[-*•]\s*/, '').trim(),
+          category: 'General'
+        }));
+
+        setDayData(prev => ({
+          ...prev,
+          processedItems
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing brain dump:', error);
+      alert('Failed to process brain dump. Please check your API key and try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const onDragEnd = (result: any) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+
+    const sourceId = source.droppableId;
+    const destId = destination.droppableId;
+
+    // Handle drag from processed items to priorities
+    if (sourceId === 'processed-items' && destId === 'priorities') {
+      if (dayData.priorities.length >= 3) {
+        alert('You can only have 3 priorities!');
+        return;
+      }
+
+      const item = dayData.processedItems.find(item => item.id === draggableId);
+      if (item) {
+        const priorityItem: PriorityItem = { ...item, priority: dayData.priorities.length + 1 };
+        setDayData(prev => ({
+          ...prev,
+          priorities: [...prev.priorities, priorityItem],
+          processedItems: prev.processedItems.filter(item => item.id !== draggableId)
+        }));
+      }
+    }
+
+    // Handle drag from priorities to time slots
+    if (sourceId === 'priorities' && destId.startsWith('slot-')) {
+      const hour = parseInt(destId.replace('slot-', ''));
+      const item = dayData.priorities.find(item => item.id === draggableId);
+      if (item) {
+        setDayData(prev => ({
+          ...prev,
+          priorities: prev.priorities.filter(item => item.id !== draggableId),
+          timeSlots: prev.timeSlots.map(slot =>
+            slot.hour === hour
+              ? { ...slot, draggedItems: [...slot.draggedItems, item] }
+              : slot
+          )
+        }));
+      }
+    }
+
+    // Handle drag from processed items to time slots
+    if (sourceId === 'processed-items' && destId.startsWith('slot-')) {
+      const hour = parseInt(destId.replace('slot-', ''));
+      const item = dayData.processedItems.find(item => item.id === draggableId);
+      if (item) {
+        setDayData(prev => ({
+          ...prev,
+          processedItems: prev.processedItems.filter(item => item.id !== draggableId),
+          timeSlots: prev.timeSlots.map(slot =>
+            slot.hour === hour
+              ? { ...slot, draggedItems: [...slot.draggedItems, item] }
+              : slot
+          )
+        }));
+      }
+    }
+  };
 
   const updateTimeSlot = (hour: number, task: string, notes: string) => {
-    setTimeSlots(prev => prev.map(slot => 
-      slot.hour === hour 
-        ? { ...slot, task, notes }
-        : slot
-    ));
+    setDayData(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.map(slot => 
+        slot.hour === hour 
+          ? { ...slot, task, notes }
+          : slot
+      )
+    }));
     setEditingSlot(null);
     setNewTask('');
     setNewNotes('');
   };
 
   const deleteTimeSlot = (hour: number) => {
-    setTimeSlots(prev => prev.map(slot => 
-      slot.hour === hour 
-        ? { ...slot, task: '', notes: '' }
-        : slot
-    ));
+    setDayData(prev => ({
+      ...prev,
+      timeSlots: prev.timeSlots.map(slot => 
+        slot.hour === hour 
+          ? { ...slot, task: '', notes: '', draggedItems: [] }
+          : slot
+      )
+    }));
+  };
+
+  const removePriority = (id: string) => {
+    const item = dayData.priorities.find(p => p.id === id);
+    if (item) {
+      setDayData(prev => ({
+        ...prev,
+        priorities: prev.priorities.filter(p => p.id !== id),
+        processedItems: [...prev.processedItems, item]
+      }));
+    }
   };
 
   const formatHour = (hour: number) => {
@@ -83,107 +264,261 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
   };
 
   return (
-    <div className="space-y-4 max-h-[700px] overflow-y-auto custom-scrollbar">
-      {timeSlots.map((slot) => (
-        <Card key={slot.id} className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-500" />
-                <span className="font-semibold text-slate-700">
-                  {formatHour(slot.hour)}
-                </span>
-              </div>
-              
-              {slot.task || slot.notes ? (
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => startEditing(slot)}
-                    className="h-8 w-8 p-0 hover:bg-blue-50"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteTimeSlot(slot.hour)}
-                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => startEditing(slot)}
-                  className="h-8 w-8 p-0 hover:bg-blue-50"
-                >
-                  <Plus className="w-3 h-3" />
-                </Button>
-              )}
-            </div>
-
-            {editingSlot === slot.id ? (
-              <div className="space-y-3">
-                <Input
-                  placeholder="Add a task..."
-                  value={newTask}
-                  onChange={(e) => setNewTask(e.target.value)}
-                  className="border-blue-200 focus:border-blue-400"
-                />
-                <Textarea
-                  placeholder="Add notes..."
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  rows={2}
-                  className="border-blue-200 focus:border-blue-400 resize-none"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => updateTimeSlot(slot.hour, newTask, newNotes)}
-                    className="bg-blue-500 hover:bg-blue-600"
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditingSlot(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="space-y-6">
+        {/* API Key Input */}
+        {!apiKey && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
               <div className="space-y-2">
-                {slot.task && (
-                  <div className="bg-blue-50 p-2 rounded-md">
-                    <span className="text-sm font-medium text-blue-800">
-                      {slot.task}
-                    </span>
-                  </div>
-                )}
-                {slot.notes && (
-                  <div className="bg-slate-50 p-2 rounded-md">
-                    <span className="text-sm text-slate-600 whitespace-pre-wrap">
-                      {slot.notes}
-                    </span>
-                  </div>
-                )}
-                {!slot.task && !slot.notes && (
-                  <div className="text-slate-400 text-sm italic">
-                    Click + to add tasks and notes
-                  </div>
-                )}
+                <label className="text-sm font-medium text-amber-800">
+                  Enter your OpenAI API Key for AI processing:
+                </label>
+                <Input
+                  type="password"
+                  placeholder="sk-..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="border-amber-300"
+                />
+                <p className="text-xs text-amber-700">
+                  This will be stored locally and used to process your brain dump.
+                </p>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Brain Dump Section */}
+        <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="w-5 h-5 text-purple-600" />
+              <h3 className="text-lg font-semibold text-purple-800">Brain Dump</h3>
+            </div>
+            <Textarea
+              placeholder="Dump all your thoughts, ideas, and tasks here..."
+              value={dayData.brainDump}
+              onChange={(e) => setDayData(prev => ({ ...prev, brainDump: e.target.value }))}
+              rows={4}
+              className="border-purple-200 focus:border-purple-400 mb-4"
+            />
+            <Button
+              onClick={processBrainDump}
+              disabled={!dayData.brainDump.trim() || isProcessing || !apiKey}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isProcessing ? 'Processing...' : 'Organize with AI'}
+            </Button>
           </CardContent>
         </Card>
-      ))}
-    </div>
+
+        {/* Processed Items */}
+        {dayData.processedItems.length > 0 && (
+          <Card className="border-blue-200">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Organized Items</h3>
+              <Droppable droppableId="processed-items">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
+                    {dayData.processedItems.map((item, index) => (
+                      <Draggable key={item.id} draggableId={item.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`p-3 bg-blue-50 rounded-lg border cursor-move transition-all ${
+                              snapshot.isDragging ? 'shadow-lg rotate-2' : ''
+                            }`}
+                          >
+                            <span className="text-sm font-medium">{item.text}</span>
+                            {item.category && (
+                              <span className="ml-2 text-xs bg-blue-200 px-2 py-1 rounded">
+                                {item.category}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top 3 Priorities */}
+        <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Target className="w-5 h-5 text-amber-600" />
+              <h3 className="text-lg font-semibold text-amber-800">Top 3 Priorities</h3>
+            </div>
+            <Droppable droppableId="priorities">
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 min-h-[100px]">
+                  {dayData.priorities.map((item, index) => (
+                    <Draggable key={item.id} draggableId={item.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={`p-3 bg-amber-100 rounded-lg border-2 border-amber-300 cursor-move transition-all flex items-center justify-between ${
+                            snapshot.isDragging ? 'shadow-lg rotate-1' : ''
+                          }`}
+                        >
+                          <span className="text-sm font-medium">{item.text}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removePriority(item.id)}
+                            className="h-6 w-6 p-0 hover:bg-amber-200"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                  {dayData.priorities.length === 0 && (
+                    <div className="text-amber-600 text-sm italic p-4 text-center border-2 border-dashed border-amber-300 rounded-lg">
+                      Drag your most important items here (max 3)
+                    </div>
+                  )}
+                </div>
+              )}
+            </Droppable>
+          </CardContent>
+        </Card>
+
+        {/* Hourly Schedule */}
+        <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar">
+          {dayData.timeSlots.map((slot) => (
+            <Card key={slot.id} className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    <span className="font-semibold text-slate-700">
+                      {formatHour(slot.hour)}
+                    </span>
+                  </div>
+                  
+                  {slot.task || slot.notes || slot.draggedItems.length > 0 ? (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEditing(slot)}
+                        className="h-8 w-8 p-0 hover:bg-blue-50"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteTimeSlot(slot.hour)}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => startEditing(slot)}
+                      className="h-8 w-8 p-0 hover:bg-blue-50"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+
+                <Droppable droppableId={`slot-${slot.hour}`}>
+                  {(provided, snapshot) => (
+                    <div
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className={`min-h-[40px] rounded-lg transition-colors ${
+                        snapshot.isDraggingOver ? 'bg-blue-100 border-2 border-dashed border-blue-300' : ''
+                      }`}
+                    >
+                      {editingSlot === slot.id ? (
+                        <div className="space-y-3">
+                          <Input
+                            placeholder="Add a task..."
+                            value={newTask}
+                            onChange={(e) => setNewTask(e.target.value)}
+                            className="border-blue-200 focus:border-blue-400"
+                          />
+                          <Textarea
+                            placeholder="Add notes..."
+                            value={newNotes}
+                            onChange={(e) => setNewNotes(e.target.value)}
+                            rows={2}
+                            className="border-blue-200 focus:border-blue-400 resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => updateTimeSlot(slot.hour, newTask, newNotes)}
+                              className="bg-blue-500 hover:bg-blue-600"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingSlot(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {slot.task && (
+                            <div className="bg-blue-50 p-2 rounded-md">
+                              <span className="text-sm font-medium text-blue-800">
+                                {slot.task}
+                              </span>
+                            </div>
+                          )}
+                          {slot.notes && (
+                            <div className="bg-slate-50 p-2 rounded-md">
+                              <span className="text-sm text-slate-600 whitespace-pre-wrap">
+                                {slot.notes}
+                              </span>
+                            </div>
+                          )}
+                          {slot.draggedItems.map((item) => (
+                            <div key={item.id} className="bg-green-50 border border-green-200 p-2 rounded-md">
+                              <span className="text-sm text-green-800">{item.text}</span>
+                            </div>
+                          ))}
+                          {!slot.task && !slot.notes && slot.draggedItems.length === 0 && !snapshot.isDraggingOver && (
+                            <div className="text-slate-400 text-sm italic">
+                              Click + to add tasks or drag items here
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </DragDropContext>
   );
 };
