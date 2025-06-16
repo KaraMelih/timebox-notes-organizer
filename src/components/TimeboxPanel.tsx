@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target, ListPlus, ChevronDown, ChevronUp, Check } from 'lucide-react';
