@@ -645,9 +645,11 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                                   size="sm"
                                   onClick={() => toggleTaskComplete(slot.hour, item.id)}
                                   className="h-6 w-6 p-0 hover:bg-green-100"
+                                >
+                                  <Check className={`w-4 h-4 ${item.completed ? 'text-green-600' : 'text-slate-400'}`} />
                                 </Button>
                               </div>
-                            ))}
+                            )}
                             {!hasContent && !snapshot.isDraggingOver && (
                               <div className="text-slate-400 text-xs italic">
                                 Click + to add tasks or drag items here
