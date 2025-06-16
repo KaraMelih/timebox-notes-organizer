@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target, ListPlus, ChevronDown, ChevronUp, Check } from 'lucide-react';
@@ -417,7 +418,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <h3 className="text-lg font-semibold text-blue-800 mb-4">Organized Items</h3>
                   <Droppable droppableId="processed-items">
                     {(provided) => (
                       <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
@@ -509,7 +509,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
 
         {/* Hourly Schedule */}
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5 text-blue-500" />
             Hourly Schedule
           </h3>
@@ -522,7 +522,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-blue-500" />
-                      <span className="font-semibold text-slate-700 text-sm">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
                         {formatHour(slot.hour)}
                       </span>
                     </div>
@@ -602,8 +602,8 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                         ) : (
                           <div className="space-y-2">
                             {slot.task && (
-                              <div className="bg-blue-50 p-2 rounded-md flex items-center justify-between">
-                                <span className={`text-sm font-medium ${slot.completed ? 'line-through text-slate-400' : 'text-blue-800'}`}>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-md flex items-center justify-between">
+                                <span className={`text-sm font-medium ${slot.completed ? 'line-through text-slate-400' : 'text-blue-800 dark:text-blue-200'}`}>
                                   {slot.task}
                                 </span>
                                 <Button
@@ -617,15 +617,15 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                               </div>
                             )}
                             {slot.notes && (
-                              <div className="bg-slate-50 p-2 rounded-md">
-                                <span className="text-sm text-slate-600 whitespace-pre-wrap">
+                              <div className="bg-slate-50 dark:bg-slate-800 p-2 rounded-md">
+                                <span className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
                                   {slot.notes}
                                 </span>
                               </div>
                             )}
                             {slot.draggedItems.map((item) => (
-                              <div key={item.id} className="bg-green-50 border border-green-200 p-2 rounded-md flex items-center justify-between">
-                                <span className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-green-800'}`}>
+                              <div key={item.id} className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2 rounded-md flex items-center justify-between">
+                                <span className={`text-sm ${item.completed ? 'line-through text-slate-400' : 'text-green-800 dark:text-green-200'}`}>
                                   {item.text}
                                 </span>
                                 <Button
@@ -637,7 +637,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                                   <Check className={`w-4 h-4 ${item.completed ? 'text-green-600' : 'text-slate-400'}`} />
                                 </Button>
                               </div>
-                            )}
+                            ))}
                             {!hasContent && !snapshot.isDraggingOver && (
                               <div className="text-slate-400 text-xs italic text-center py-1">
                                 Drag tasks here or click + to add
