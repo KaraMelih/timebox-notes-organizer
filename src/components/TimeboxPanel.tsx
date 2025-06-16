@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target, ListPlus, ChevronDown, ChevronUp, Check } from 'lucide-react';
@@ -649,7 +650,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                                   <Check className={`w-4 h-4 ${item.completed ? 'text-green-600' : 'text-slate-400'}`} />
                                 </Button>
                               </div>
-                            )}
+                            ))}
                             {!hasContent && !snapshot.isDraggingOver && (
                               <div className="text-slate-400 text-xs italic">
                                 Click + to add tasks or drag items here
