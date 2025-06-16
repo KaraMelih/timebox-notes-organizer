@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CalendarComponent } from '@/components/CalendarComponent';
 import { TimeboxPanel } from '@/components/TimeboxPanel';
 import { HourlyCalendar } from '@/components/HourlyCalendar';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { format } from 'date-fns';
 import {
   ResizablePanelGroup,
@@ -48,13 +49,16 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 transition-colors">
       <div className="container mx-auto p-6">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-slate-800 mb-2">
+        <header className="mb-8 text-center relative">
+          <div className="absolute top-0 right-0">
+            <ThemeToggle />
+          </div>
+          <h1 className="text-4xl font-bold text-slate-800 dark:text-slate-100 mb-2">
             Timebox Notes Organizer
           </h1>
-          <p className="text-slate-600 text-lg">
+          <p className="text-slate-600 dark:text-slate-300 text-lg">
             Plan your day with precision and take notes for every moment
           </p>
         </header>
@@ -62,8 +66,8 @@ const Index = () => {
         <ResizablePanelGroup direction="horizontal" className="max-w-7xl mx-auto">
           <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
             <div className="h-full space-y-6 pr-3">
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <h2 className="text-2xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                   Calendar
                 </h2>
@@ -73,8 +77,8 @@ const Index = () => {
                 />
               </div>
               
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-                <h2 className="text-2xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
+                <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                   Daily Overview
                 </h2>
@@ -91,8 +95,8 @@ const Index = () => {
           
           <ResizablePanel defaultSize={65} minSize={50}>
             <div className="h-full pl-3">
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 h-full">
-                <h2 className="text-2xl font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 h-full">
+                <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                 </h2>

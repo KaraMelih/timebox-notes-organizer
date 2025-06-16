@@ -103,7 +103,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
     if (!dayData.brainDump.trim()) return;
     
     if (!apiKey) {
-      // Manual processing - just split by lines and create items
       const lines = dayData.brainDump.split('\n').filter(line => line.trim());
       const processedItems: ProcessedItem[] = lines.map((line, index) => ({
         id: `processed-${Date.now()}-${index}`,
@@ -118,7 +117,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
       return;
     }
 
-    // AI processing with OpenAI
     setIsProcessing(true);
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -162,7 +160,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
           processedItems
         }));
       } catch (parseError) {
-        // Fallback: split by lines if JSON parsing fails
         const lines = content.split('\n').filter(line => line.trim());
         const processedItems: ProcessedItem[] = lines.map((line, index) => ({
           id: `processed-${Date.now()}-${index}`,
@@ -206,7 +203,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
       timeSlots: prev.timeSlots.map(slot => {
         if (slot.hour === hour) {
           if (itemId) {
-            // Toggle completion for dragged item
             return {
               ...slot,
               draggedItems: slot.draggedItems.map(item =>
@@ -214,7 +210,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
               )
             };
           } else {
-            // Toggle completion for main task
             return { ...slot, completed: !slot.completed };
           }
         }
@@ -231,7 +226,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
     const sourceId = source.droppableId;
     const destId = destination.droppableId;
 
-    // Handle drag from processed items to priorities
     if (sourceId === 'processed-items' && destId === 'priorities') {
       if (dayData.priorities.length >= 3) {
         alert('You can only have 3 priorities!');
@@ -249,7 +243,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
       }
     }
 
-    // Handle drag from priorities to time slots
     if (sourceId === 'priorities' && destId.startsWith('slot-')) {
       const hour = parseInt(destId.replace('slot-', ''));
       const item = dayData.priorities.find(item => item.id === draggableId);
@@ -266,7 +259,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
       }
     }
 
-    // Handle drag from processed items to time slots
     if (sourceId === 'processed-items' && destId.startsWith('slot-')) {
       const hour = parseInt(destId.replace('slot-', ''));
       const item = dayData.processedItems.find(item => item.id === draggableId);
@@ -335,7 +327,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+      <div className="space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
         {/* API Key Input - only show if no key is set */}
         {!apiKey && (
           <Card className="border-amber-200 bg-amber-50">
@@ -373,10 +365,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Brain className="w-5 h-5 text-purple-600" />
-                  <h3 className="text-lg font-semibold text-purple-800">Brain Dump</h3>
-                </div>
                 <Textarea
                   placeholder="Dump all your thoughts, ideas, and tasks here... (each line will become an item)"
                   value={dayData.brainDump}
@@ -478,10 +466,6 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <Target className="w-5 h-5 text-amber-600" />
-                  <h3 className="text-lg font-semibold text-amber-800">Top 3 Priorities</h3>
-                </div>
                 <Droppable droppableId="priorities">
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 min-h-[100px]">
@@ -524,17 +508,21 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
         </Collapsible>
 
         {/* Hourly Schedule */}
-        <div className="space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-blue-500" />
+            Hourly Schedule
+          </h3>
           {dayData.timeSlots.map((slot) => {
             const hasContent = slot.task || slot.notes || slot.draggedItems.length > 0;
             
             return (
-              <Card key={slot.id} className={`transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200 ${!hasContent ? 'py-2' : ''}`}>
+              <Card key={slot.id} className={`transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200 ${!hasContent ? 'py-1' : 'py-2'}`}>
                 <CardContent className={hasContent ? "p-4" : "p-2"}>
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-blue-500" />
-                      <span className="font-semibold text-slate-700">
+                      <span className="font-semibold text-slate-700 text-sm">
                         {formatHour(slot.hour)}
                       </span>
                     </div>
@@ -545,7 +533,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                           variant="ghost"
                           size="sm"
                           onClick={() => startEditing(slot)}
-                          className="h-8 w-8 p-0 hover:bg-blue-50"
+                          className="h-6 w-6 p-0 hover:bg-blue-50"
                         >
                           <Edit3 className="w-3 h-3" />
                         </Button>
@@ -553,7 +541,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                           variant="ghost"
                           size="sm"
                           onClick={() => deleteTimeSlot(slot.hour)}
-                          className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600"
+                          className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -563,7 +551,7 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                         variant="ghost"
                         size="sm"
                         onClick={() => startEditing(slot)}
-                        className="h-8 w-8 p-0 hover:bg-blue-50"
+                        className="h-6 w-6 p-0 hover:bg-blue-50"
                       >
                         <Plus className="w-3 h-3" />
                       </Button>
@@ -649,10 +637,10 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
                                   <Check className={`w-4 h-4 ${item.completed ? 'text-green-600' : 'text-slate-400'}`} />
                                 </Button>
                               </div>
-                            ))}
+                            )}
                             {!hasContent && !snapshot.isDraggingOver && (
-                              <div className="text-slate-400 text-xs italic">
-                                Click + to add tasks or drag items here
+                              <div className="text-slate-400 text-xs italic text-center py-1">
+                                Drag tasks here or click + to add
                               </div>
                             )}
                           </div>
