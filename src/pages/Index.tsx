@@ -10,8 +10,42 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable"
 
+interface TimeSlot {
+  id: string;
+  hour: number;
+  task: string;
+  notes: string;
+  draggedItems: any[];
+  completed?: boolean;
+}
+
 const Index = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+
+  const handleTimeSlotsChange = (newTimeSlots: TimeSlot[]) => {
+    setTimeSlots(newTimeSlots);
+  };
+
+  const handleToggleComplete = (hour: number, itemId?: string) => {
+    setTimeSlots(prevSlots => 
+      prevSlots.map(slot => {
+        if (slot.hour === hour) {
+          if (itemId) {
+            return {
+              ...slot,
+              draggedItems: slot.draggedItems.map(item =>
+                item.id === itemId ? { ...item, completed: !item.completed } : item
+              )
+            };
+          } else {
+            return { ...slot, completed: !slot.completed };
+          }
+        }
+        return slot;
+      })
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -44,7 +78,11 @@ const Index = () => {
                   <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                   Daily Overview
                 </h2>
-                <HourlyCalendar selectedDate={selectedDate} />
+                <HourlyCalendar 
+                  selectedDate={selectedDate} 
+                  timeSlots={timeSlots}
+                  onToggleComplete={handleToggleComplete}
+                />
               </div>
             </div>
           </ResizablePanel>
@@ -58,7 +96,10 @@ const Index = () => {
                   <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                   {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                 </h2>
-                <TimeboxPanel selectedDate={selectedDate} />
+                <TimeboxPanel 
+                  selectedDate={selectedDate} 
+                  onTimeSlotsChange={handleTimeSlotsChange}
+                />
               </div>
             </div>
           </ResizablePanel>
