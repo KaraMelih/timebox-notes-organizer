@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target } from 'lucide-react';
+import { Clock, Plus, Edit3, Trash2, Brain, Sparkles, Target, ListPlus } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +48,7 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
   const [newNotes, setNewNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [newItemText, setNewItemText] = useState('');
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
 
@@ -84,11 +84,24 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
 
   const processBrainDump = async () => {
     if (!dayData.brainDump.trim()) return;
+    
     if (!apiKey) {
-      alert('Please enter your OpenAI API key first');
+      // Manual processing - just split by lines and create items
+      const lines = dayData.brainDump.split('\n').filter(line => line.trim());
+      const processedItems: ProcessedItem[] = lines.map((line, index) => ({
+        id: `processed-${Date.now()}-${index}`,
+        text: line.trim(),
+        category: 'General'
+      }));
+
+      setDayData(prev => ({
+        ...prev,
+        processedItems
+      }));
       return;
     }
 
+    // AI processing with OpenAI
     setIsProcessing(true);
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -151,6 +164,23 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const addManualItem = () => {
+    if (!newItemText.trim()) return;
+    
+    const newItem: ProcessedItem = {
+      id: `manual-${Date.now()}`,
+      text: newItemText.trim(),
+      category: 'Manual'
+    };
+
+    setDayData(prev => ({
+      ...prev,
+      processedItems: [...prev.processedItems, newItem]
+    }));
+    
+    setNewItemText('');
   };
 
   const onDragEnd = (result: any) => {
@@ -265,24 +295,24 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="space-y-6">
-        {/* API Key Input */}
+      <div className="space-y-6 max-h-[80vh] overflow-y-auto">
+        {/* API Key Input - only show if no key is set */}
         {!apiKey && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="p-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-amber-800">
-                  Enter your OpenAI API Key for AI processing:
+                  OpenAI API Key (optional - for AI organization):
                 </label>
                 <Input
                   type="password"
-                  placeholder="sk-..."
+                  placeholder="sk-... (leave empty for manual organization)"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   className="border-amber-300"
                 />
                 <p className="text-xs text-amber-700">
-                  This will be stored locally and used to process your brain dump.
+                  With API key: AI will organize your brain dump. Without: Manual line-by-line processing.
                 </p>
               </div>
             </CardContent>
@@ -297,20 +327,40 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
               <h3 className="text-lg font-semibold text-purple-800">Brain Dump</h3>
             </div>
             <Textarea
-              placeholder="Dump all your thoughts, ideas, and tasks here..."
+              placeholder="Dump all your thoughts, ideas, and tasks here... (each line will become an item)"
               value={dayData.brainDump}
               onChange={(e) => setDayData(prev => ({ ...prev, brainDump: e.target.value }))}
               rows={4}
               className="border-purple-200 focus:border-purple-400 mb-4"
             />
-            <Button
-              onClick={processBrainDump}
-              disabled={!dayData.brainDump.trim() || isProcessing || !apiKey}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              {isProcessing ? 'Processing...' : 'Organize with AI'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={processBrainDump}
+                disabled={!dayData.brainDump.trim() || isProcessing}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {apiKey ? <Sparkles className="w-4 h-4 mr-2" /> : <ListPlus className="w-4 h-4 mr-2" />}
+                {isProcessing ? 'Processing...' : apiKey ? 'Organize with AI' : 'Create Items'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Manual Item Addition */}
+        <Card className="border-gray-200">
+          <CardContent className="p-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add individual item..."
+                value={newItemText}
+                onChange={(e) => setNewItemText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addManualItem()}
+                className="flex-1"
+              />
+              <Button onClick={addManualItem} disabled={!newItemText.trim()}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -398,7 +448,7 @@ export const TimeboxPanel = ({ selectedDate }: TimeboxPanelProps) => {
         </Card>
 
         {/* Hourly Schedule */}
-        <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar">
+        <div className="space-y-4">
           {dayData.timeSlots.map((slot) => (
             <Card key={slot.id} className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200">
               <CardContent className="p-4">
