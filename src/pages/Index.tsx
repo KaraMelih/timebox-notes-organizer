@@ -76,8 +76,8 @@ const Index = () => {
         </header>
         <ResizablePanelGroup direction="horizontal" className="max-w-7xl mx-auto">
           <ResizablePanel defaultSize={35} minSize={25} maxSize={50}>
-            <div className="h-full space-y-6 pr-3 dark:bg-black-800">
-              <div className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+            <div className="h-full space-y-6 pr-3">
+              <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
                 <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-blue-500 dark:bg-blue-300 rounded-full"></span>
                   Calendar
@@ -88,7 +88,7 @@ const Index = () => {
                 />
               </div>
               
-              <div className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
                 <h2 className="debug text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-orange-500 rounded-full dark:bg-orange-300"></span>
                   Daily Overview
@@ -106,7 +106,7 @@ const Index = () => {
           
           <ResizablePanel defaultSize={65} minSize={50}>
             <div className="h-full pl-3">
-              <div className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300">
                 <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-500 rounded-full dark:bg-green-300"></span>
                   {format(selectedDate, 'EEEE, MMMM d, yyyy')}
