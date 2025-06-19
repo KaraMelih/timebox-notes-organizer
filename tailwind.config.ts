@@ -2,6 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
 	darkMode: ["class"],
+	safelist: [
+		'dark:bg-slate-800',
+		'dark:text-slate-100',
+		'bg-white',
+		'text-slate-800'
+		],	
 	content: [
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",

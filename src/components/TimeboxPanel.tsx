@@ -242,7 +242,40 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
           processedItems: prev.processedItems.filter(item => item.id !== draggableId)
         }));
       }
+    
+  if (sourceId === 'priorities' && destId.startsWith('slot-')) {
+      const hour = parseInt(destId.replace('slot-', ''));
+      const item = dayData.priorities.find(item => item.id === draggableId);
+      if (item) {
+        setDayData(prev => ({
+          ...prev,
+          timeSlots: prev.timeSlots.map(slot =>
+            slot.hour === hour
+              ? { ...slot, draggedItems: [...slot.draggedItems, { ...item, id: `${item.id}-slot-${hour}-${Date.now()}` }] }
+              : slot
+          )
+        }));
+      }
+      return;
     }
+
+    if (sourceId === 'processed-items' && destId.startsWith('slot-')) {
+      const hour = parseInt(destId.replace('slot-', ''));
+      const item = dayData.processedItems.find(item => item.id === draggableId);
+      if (item) {
+        setDayData(prev => ({
+          ...prev,
+          processedItems: prev.processedItems.filter(item => item.id !== draggableId),
+          timeSlots: prev.timeSlots.map(slot =>
+            slot.hour === hour
+              ? { ...slot, draggedItems: [...slot.draggedItems, item] }
+              : slot
+          )
+        }));
+      }
+      return;
+    }
+  };
 
     if (sourceId === 'priorities' && destId.startsWith('slot-')) {
       const hour = parseInt(destId.replace('slot-', ''));
@@ -513,10 +546,19 @@ export const TimeboxPanel = ({ selectedDate, onTimeSlotsChange }: TimeboxPanelPr
             <Clock className="w-5 h-5 text-blue-500" />
             Hourly Schedule
           </h3>
-          {dayData.timeSlots.map((slot) => {
+          {dayData.timeSlots.filter(slot => {
+              const now = new Date();
+              const isToday = format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+              return !isToday || slot.hour >= now.getHours(); // show only current/future hours
+            }).map((slot ) => {
             const hasContent = slot.task || slot.notes || slot.draggedItems.length > 0;
             
+            const now = new Date();
+            const isToday = format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+            const isPastHour = isToday && slot.hour < now.getHours();
+
             return (
+              // <Card key={slot.hour} className={isPastHour && !hasContent ? "opacity-40 h-8 overflow-hidden" : ""}>
               <Card key={slot.id} className={`transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-200 ${!hasContent ? 'py-1' : 'py-2'}`}>
                 <CardContent className={hasContent ? "p-4" : "p-2"}>
                   <div className="flex items-start justify-between mb-2">

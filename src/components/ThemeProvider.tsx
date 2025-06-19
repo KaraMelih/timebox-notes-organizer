@@ -31,23 +31,38 @@ export function ThemeProvider({
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   );
 
+  // useEffect(() => {
+  //   const root = window.document.documentElement;
+
+  //   root.classList.remove('light', 'dark');
+
+  //   if (theme === 'system') {
+  //     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
+  //       .matches
+  //       ? 'dark'
+  //       : 'light';
+
+  //     root.classList.add(systemTheme);
+  //     return;
+  //   }
+
+  //   root.classList.add(theme);
+  // }, [theme]);
+
   useEffect(() => {
-    const root = window.document.documentElement;
+  const root = window.document.documentElement;
+  root.classList.remove('light', 'dark');
 
-    root.classList.remove('light', 'dark');
+  let appliedTheme = theme;
 
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
+  if (theme === 'system') {
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    appliedTheme = systemPrefersDark ? 'dark' : 'light';
+  }
 
-      root.classList.add(systemTheme);
-      return;
-    }
+  root.classList.add(appliedTheme);
+}, [theme]);
 
-    root.classList.add(theme);
-  }, [theme]);
 
   const value = {
     theme,
